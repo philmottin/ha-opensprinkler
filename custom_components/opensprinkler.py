@@ -2,7 +2,7 @@
  OpenSprinkler custom component for Home Assistant
 
  Author: Phil Mottin
- Version: 1.0
+ Version: 1.1
  Description: This is a work in progress.
               The component will fetch OpenSprinkler API and build a python dictionary into "<obj>.data['data']" attribute of OpenSprinklerData class"
               stations = <obj>.data['data']['stations']
@@ -32,6 +32,7 @@ from homeassistant.helpers.discovery import load_platform
 
 #import homeassistant.components.input_select as input_select
 from homeassistant.components.input_number import InputNumber
+from homeassistant.components.input_text import InputText
 
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=5)
@@ -39,9 +40,7 @@ SCAN_INTERVAL = timedelta(seconds=5)
 # The domain of your component. Equal to the filename of your component.
 DOMAIN = "opensprinkler"
 DATA_OPENSPRINKLER = 'DATA_opensprinkler'
-#OS_SELECT = "os_sectors"
 weekDays = ['M','T','W','T','F','S','S']
-
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -62,11 +61,44 @@ def setup(hass, config):
     server += ":"+port
     hass.data[DATA_OPENSPRINKLER] = OpenSprinklerData(server, password)
     hass.data[DATA_OPENSPRINKLER].update()
-    #stations = hass.data[DATA_OPENSPRINKLER].data['data']['stations']
-    #schedules = hass.data[DATA_OPENSPRINKLER].data['data']['programs']
+    stations = hass.data[DATA_OPENSPRINKLER].data['data']['stations']
+    schedules = hass.data[DATA_OPENSPRINKLER].data['data']['programs']
     #_LOGGER.warning("stations: %s", stations)
+    pump1_index = hass.data[DATA_OPENSPRINKLER].data['data']['pump1_index']
+    pump2_index = hass.data[DATA_OPENSPRINKLER].data['data']['pump2_index']
+
+    input_number_component = EntityComponent(_LOGGER, 'input_number', hass)
+    script_component = EntityComponent(_LOGGER, 'script', hass)
+    input_text_component = EntityComponent(_LOGGER, 'opensprinkler', hass)
+    entities_input_numbers = []
+
+    count = 1
+    for station in stations:
+        #do not add input_number if station is a pump
+        if (int(pump1_index) != count and int(pump2_index) != count):
+            # object_id = '{}_timer'.format(slugify(station))
+            name = '{}'.format(station)
+            object_id = "slider_" + str(count)
+            minimum = 1
+            maximum = 10
+            initial = 1
+            step = 1
+            unit = ''
+            count += 1
+            inputNumber = InputNumber(object_id, name, initial, minimum, maximum, step, None, unit, 'box')
+            entities_input_numbers.append(inputNumber)
+
+    #uncoment to dynamically create input_numbers, but their state doesn't change upon ui changes
+    #input_number_component.add_entities(entities_input_numbers)
+
+    #uncoment to dynamically create input_text, but it state doesn't change upon ui changes
+    #inputText = InputText('scene_temp_var', 'scene_temp_var', 'off:3', 0, 100, None, '', '', 'text')
+    #input_text_component.add_entities([inputText])
 
 
+    load_platform(hass, 'scene', DOMAIN)
+
+    #populate a existing input_selects with stations and programs if you want.
     #select_data = {"options": list(stations), "entity_id": "input_select.os_control_station"}
     #select_data2 = {"options": list(schedules), "entity_id": "input_select.os_control_schedule"}
     #hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, select_data)
@@ -83,7 +115,8 @@ class OpenSprinklerData(object):
     def __init__(self, srv, passwd):
         self.data = None
         self.url = 'http://'+str(srv)+'/ja?pw='+str(passwd)
-        self.url_manual = 'http://'+str(srv)+'/cm?pw='+str(passwd)
+        self.url_manual = 'http://' + str(srv) + '/cm?pw=' + str(passwd)
+        self.url_program = 'http://' + str(srv) + '/mp?pw=' + str(passwd)
 
     @Throttle(SCAN_INTERVAL)
     def update(self):
@@ -97,6 +130,28 @@ class OpenSprinklerData(object):
             api_dict['data'] = parse_api_data(json.loads(response.text, object_pairs_hook=OrderedDict))
 
         self.data = api_dict
+
+    def turn_on(self, minutes, key):
+        try:
+            index = self.data['data']['stations'][key]['index']
+            url = self.url_manual + '&sid={}&en=1&t={}'.format(index, minutes)
+            response = requests.get(url, timeout=10)
+        except requests.exceptions.ConnectionError:
+            _LOGGER.error("No route to device '%s'", self._resource)
+    def turn_off(self, key):
+        try:
+            index = self.data['data']['stations'][key]['index']
+            url = self.url_manual + '&sid={}&en=0'.format(index)
+            response = requests.get(url, timeout=10)
+        except requests.exceptions.ConnectionError:
+            _LOGGER.error("No route to device '%s'", self._resource)
+
+    def activate(self, index):
+        try:
+            url = self.url_program + '&pid={}&uwt=1'.format(index)
+            response = requests.get(url, timeout=10)
+        except requests.exceptions.ConnectionError:
+            _LOGGER.error("No route to device '%s'", self._resource)
 
 
 def processDurations(durations, stations):

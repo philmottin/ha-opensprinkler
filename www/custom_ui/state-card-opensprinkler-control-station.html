@@ -1,0 +1,96 @@
+<dom-module id="state-card-opensprinkler-control-station">
+  <template>
+    <style is="custom-style" include="iron-flex iron-flex-alignment"></style>
+    <style>
+      :host {
+        line-height: 1.5;
+      }
+      paper-button {
+        min-width: 60px;
+        /* background-color:#f3f3f3 */
+      }
+
+    </style>
+
+<div class='horizontal justified layout'>
+  <state-info state-obj="[[stateObj]]"></state-info>
+
+  <paper-button-group>
+      <paper-slider min="0" max="10" pin=""  value="[[value]]" on-change="valueChanged"></paper-slider>
+
+      <paper-button on-up="btnup2" style="background-color:#909090; color:#FFFFFF; padding:2px;">OFF</paper-button>
+
+      <paper-button on-up="btnup1" style="background-color:#909090; color:#FFFFFF; padding:2px;">ON</paper-button>
+      <div id="divMinutes" class="" style="display:inline;">
+        [[value]] min
+      </div>
+
+  </paper-button-group>
+</div>
+</template>
+</dom-module>
+<script>
+        Polymer({
+          is: 'state-card-opensprinkler-control-station',
+          properties: {
+            hass: {
+              type: Object,
+            },
+            stateObj: {
+              type: Object,
+            },
+            value: {
+                type: Number,
+                value: 1
+            },
+          },
+/*
+          btndown1: function (ev) {
+            this.setVol('on', ev);
+          },
+          btndown2: function (ev) {
+            this.setVol('off', ev);
+          },
+          */
+
+          btnup1: function (ev) {
+            this.setVol('on', ev);
+          },
+          btnup2: function (ev) {
+            this.setVol('off', ev);
+          },
+
+/*
+          btntap1: function (ev) {
+            this.setVol('on', ev);
+          },
+          btntap2: function (ev) {
+            this.setVol('off', ev);
+          },
+          */
+
+          setVol(vol,ev) {
+            var serviceData;
+
+            //command:time
+            val = vol+":"+this.value
+            serviceData = {entity_id:('input_text.scene_temp_var'),value:(val)};
+            this.hass.callService('input_text', 'set_value', serviceData);
+
+            serviceData = {entity_id:(this.stateObj.entity_id)};
+            this.hass.callService('scene', 'turn_on', serviceData);
+
+            ev.stopPropagation();
+  },
+  valueChanged(e) {
+    console.log(e)
+    //console.log(this.value)
+    console.log(e.target.value)
+
+    this.value = e.target.value
+    e.stopPropagation()
+      //this._enabledThemedReportWhenNotChanged || this.value !== e.target.value ? this.value = e.target.value : e.stopPropagation()
+  },
+
+});
+</script>

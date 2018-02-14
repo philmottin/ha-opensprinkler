@@ -2,7 +2,7 @@
  OpenSprinkler custom component for Home Assistant
 
  Author: Phil Mottin
- Version: 1.0
+ Version: 1.1
  Description: This is a work in progress.
               The component will fetch OpenSprinkler API and build a python dictionary into "<obj>.data['data']" attribute of OpenSprinklerData class"
               stations = <obj>.data['data']['stations']
@@ -113,11 +113,9 @@ class OpenSprinklerSensor(Entity):
         self._name = key
         if (sensor_type == 'opensprinkler_schedule' or sensor_type == 'opensprinkler_station' or sensor_type == 'opensprinkler_pump'):
             t = SENSOR_TYPES[self._sensor_type][0]+"_"+str(count)
-            #_LOGGER.warning("t1: %s", t)
             self.entity_id = "sensor."+t
         else:
             t = SENSOR_TYPES[self._sensor_type][0]
-            #_LOGGER.warning("t2: %s", t)
             self.entity_id = "sensor."+t
         self._icon = SENSOR_TYPES[self._sensor_type][2]
         self._unit_of_measurement = SENSOR_TYPES[self._sensor_type][1]
@@ -233,7 +231,7 @@ class OpenSprinklerSensor(Entity):
                 attrs['interval_times'] = self._osData.data['data']['programs'][self._key]['interval_times']
 
         elif(self._sensor_type == 'opensprinkler_station'):
-            #_LOGGER.warning(" self._key: %s",  self._key)
+
             attrs['friendly_name'] = self._key
             attrs['custom_ui_state_card'] = 'state-card-custom-ui'
             if (self._osData.data['data']['stations'][self._key]['p_status'][1] == 0):
